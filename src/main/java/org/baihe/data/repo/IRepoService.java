@@ -86,12 +86,12 @@ public interface IRepoService<I, T, Q> {
     Page<T> findByQueryPage(Q query, Pageable pageable);
 
     /**
-     * drop the entity with the given id
+     * delete the entity with the given id
      * @param id the id to drop
      * @return result flag
      */
-    default boolean dropById(I id) {
-        return dropByIds(ImmutableList.of(id)).iterator().hasNext();
+    default boolean deleteById(I id) {
+        return deleteByIds(ImmutableList.of(id)).iterator().hasNext();
     }
 
     /**
@@ -99,7 +99,7 @@ public interface IRepoService<I, T, Q> {
      * @param ids
      * @return
      */
-    Iterable<I> dropByIds(Iterable<I> ids);
+    Iterable<I> deleteByIds(Iterable<I> ids);
 
     long dropByQuery(Q query);
 

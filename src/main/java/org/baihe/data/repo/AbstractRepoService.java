@@ -59,12 +59,22 @@ public class AbstractRepoService<I, T, Q> implements IRepoService<I, T, Q> {
      */
     private RepoService config;
 
+    /**
+     * the type of entity id
+     */
     @Getter
     private Type idType;
 
+    /**
+     * the type of entity
+     */
     @Getter
     private Type entityType;
 
+    /**
+     * if the repository service use a proxy
+     * @return the flag
+     */
     private boolean useProxy() {
         boolean flag = null != config && config.useProxy();
         return flag && repoProxy != null;
@@ -106,6 +116,9 @@ public class AbstractRepoService<I, T, Q> implements IRepoService<I, T, Q> {
         config = this.getClass().getAnnotation(RepoService.class);
     }
 
+    /**
+     * manually initialize the inner repository
+     */
     void initInnerRepository() {
     }
 
@@ -122,17 +135,32 @@ public class AbstractRepoService<I, T, Q> implements IRepoService<I, T, Q> {
         this.repository = innerRepository;
     }
 
+    /**
+     * find the paged records by query, sort and page param
+     * @param query the query param
+     * @param sort the sort param
+     * @param pageNo the page no
+     * @param pageSize the page size
+     * @return the paged records
+     */
     public Page<T> findByQueryPage(Q query, Sort sort, int pageNo, int pageSize) {
         Pageable pageReq = PageRequest.of(Math.max(pageNo - startPage(), 0), pageSize, sort);
         return findByQueryPage(query, pageReq);
     }
 
+    /**
+     * find the paged records by query, sort and page param
+     * @param query the query param
+     * @param pageNo the page no
+     * @param pageSize the page size
+     * @return the paged records
+     */
     public Page<T> findByQueryPage(Q query, int pageNo, int pageSize) {
         return findByQueryPage(query, null, pageNo, pageSize);
     }
 
     @Override
-    public Iterable<I> dropByIds(Iterable<I> ids) {
+    public Iterable<I> deleteByIds(Iterable<I> ids) {
         Iterable<I> droppedIds = repository.dropByIds(ids);
 
         if (useProxy()) {
