@@ -56,7 +56,7 @@ import java.util.*;
 /**
  * Created by baihe on 2017/3/24.
  */
-public class BeanUtil {
+class BeanUtil {
     public static <S, D> D map(S source, Class<D> destinationClass) {
         Object target = null;
         try {

@@ -95,43 +95,122 @@ public interface IRepoService<I, T, Q> {
     }
 
     /**
-     *
-     * @param ids
-     * @return
+     * delete entities with ids
+     * @param ids the id set
+     * @return deleted id set
      */
     Iterable<I> deleteByIds(Iterable<I> ids);
 
-    long dropByQuery(Q query);
+    /**
+     * delete entities with given query
+     * @param query the query param
+     * @return deleted record count
+     */
+    long deleteByQuery(Q query);
 
-    boolean updateById(T model);
+    /**
+     * update an existed entity
+     * @param entity the given entity holds the id and updates
+     * @return the updated entity
+     */
+    T updateById(T entity);
 
-    int updateByIds(T model, Iterable<I> ids);
+    /**
+     * update multiple entities by ids
+     * @param entity the entity holds updates
+     * @param ids the id set
+     * @return updated entities with ids
+     */
+    Iterable<T> updateByIds(T entity, Iterable<I> ids);
 
-    int updateByQuery(T model, Q query);
+    /**
+     * Update entities with query and the same entity holds the updates.
+     * @param query the query
+     * @param entity the entity holds the updates.
+     * @return the updated count.
+     */
+    long updateByQuery(T entity, Q query);
 
+    /**
+     * Count the entities match the query
+     * @param query the query
+     * @return the count
+     */
     long countByQuery(Q query);
 
+    /**
+     * Retrieves an entity by its id.
+     *
+     * @param id must not be {@literal null}.
+     * @return the entity with the given id or {@literal Optional#empty()} if none found
+     */
     Optional<T> getById(I id);
 
+    /**
+     * Returns whether an entity with the given id exists.
+     *
+     * @param ids must not be {@literal null}.
+     * @return {@literal true} if an entity with the given id exists, {@literal false} otherwise.
+     */
     Iterable<T> getAllById(Iterable<I> ids);
 
+    /**
+     * Returns whether an entity with the given id exists.
+     *
+     * @param ids must not be {@literal null}.
+     * @return {@literal true} if an entity with the given id exists, {@literal false} otherwise.
+     */
     default List<T> getListByIds(Iterable<I> ids) {
         return ImmutableList.copyOf(getAllById(ids));
     }
 
-    default T insert(T model) {
-        return insertList(ImmutableList.of(model)).iterator().next();
+    /**
+     * insert an entity
+     * @param entity the entity to insert
+     * @return inserted entity
+     */
+    default T insert(T entity) {
+        return insertAll(ImmutableList.of(entity)).iterator().next();
     }
 
-    Iterable<T> insertList(Iterable<T> models);
+    /**
+     * insert multiple entites;
+     * @param entities entities to insert
+     * @return inserted entities;
+     */
+    Iterable<T> insertAll(Iterable<T> entities);
 
+    /**
+     * save entities if they are not already existed
+     * @param entities entities to save
+     * @return the bulk result
+     */
     Object saveIgnore(Iterable<T> entities);
 
+    /**
+     * save entities if they are not already existed
+     * @param entities entities to save
+     * @param fieldName fields to validate the existence
+     * @return the bulk result
+     */
     Object saveIgnore(Iterable<T> entities, String... fieldName);
 
-    default List<T> parseBulk(Iterable<T> toSave, Object bulk) {
+    /**
+     * parse the bulk object
+     * @param toSave the raw original records to write
+     * @param bulk the bulk operation result
+     * @return the parsed records
+     */
+    default Iterable<T> parseBulk(Iterable<T> toSave, Object bulk) {
         throw new UnsupportedOperationException();
     }
 
-    Object parseCond(Q query);
+    /**
+     * parse the repository condition from query
+     * @param query the query
+     * @return the parsed condition
+     */
+    default Object parseCond(Q query) {
+        return query;
+    }
 }

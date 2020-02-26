@@ -13,12 +13,12 @@
  * along with Foobar.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package org.baihe.data.repo.anno;
+package org.baihe.data.repo;
 
 /**
  * @author baihe Created on 2020/2/26 8:24 PM
  */
-public @interface RepoService {
+public @interface RepoServiceConfig {
   String schema() default "";
   String table() default "";
   boolean useProxy() default false;

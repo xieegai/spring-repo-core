@@ -21,7 +21,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.baihe.data.repo.anno.RepoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -35,7 +34,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
-public class AbstractRepoService<I, T, Q> implements IRepoService<I, T, Q> {
+public abstract class RepoService<I, T, Q> implements IRepoService<I, T, Q> {
 
     /**
      * the inner repository to access data
@@ -57,7 +56,7 @@ public class AbstractRepoService<I, T, Q> implements IRepoService<I, T, Q> {
     /**
      * the repository service configuration
      */
-    private RepoService config;
+    private RepoServiceConfig config;
 
     /**
      * the type of entity id
@@ -104,16 +103,16 @@ public class AbstractRepoService<I, T, Q> implements IRepoService<I, T, Q> {
         return null != config ? config.startPage() : 0;
     }
 
-    public AbstractRepoService() {
+    public RepoService() {
         Class subClass = getClass();
         while (!(subClass.getGenericSuperclass() instanceof ParameterizedType)
-                && subClass.getSuperclass() != AbstractRepoService.class) {
+                && subClass.getSuperclass() != RepoService.class) {
             subClass = subClass.getSuperclass();
         }
 
         idType = ((ParameterizedType) subClass.getGenericSuperclass()).getActualTypeArguments()[0];
         entityType = ((ParameterizedType) subClass.getGenericSuperclass()).getActualTypeArguments()[1];
-        config = this.getClass().getAnnotation(RepoService.class);
+        config = this.getClass().getAnnotation(RepoServiceConfig.class);
     }
 
     /**
@@ -159,25 +158,47 @@ public class AbstractRepoService<I, T, Q> implements IRepoService<I, T, Q> {
         return findByQueryPage(query, null, pageNo, pageSize);
     }
 
+    /**
+     * delete entities with ids
+     * @param ids the id set
+     * @return deleted id set
+     */
     @Override
     public Iterable<I> deleteByIds(Iterable<I> ids) {
         Iterable<I> droppedIds = repository.dropByIds(ids);
 
         if (useProxy()) {
-            publishDelete(droppedIds);
+            List<T> entities = StreamSupport.stream(ids.spliterator(), false).map(id -> {
+                T entity = null;
+                try {
+                    entity = ((Class<T>) getEntityType()).newInstance();
+                    innerRepository.setId(entity, id);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                return entity;
+            }).collect(Collectors.toList());
+
+            repoProxy.preDelete((Class<T>) getEntityType(), schema(), table(), entities);
         }
 
-        return droppedIds;
+        return ids;
     }
 
+    /**
+     * delete entities with given query
+     * @param query the query param
+     * @return deleted record count
+     */
     @Override
-    public long dropByQuery(Q query) {
+    public long deleteByQuery(Q query) {
         long nDelete = countByQuery(query);
         if (nDelete > 0) {
             if (useProxy()) {
                 Iterable<T> toDeleted = findByQuery(query);
                 if (toDeleted.iterator().hasNext()) {
-                    Iterable droppedIds = dropByIds(StreamSupport.stream(toDeleted.spliterator(), false)
+                    Iterable droppedIds = deleteByIds(
+                      StreamSupport.stream(toDeleted.spliterator(), false)
                         .map(m -> innerRepository.getId(m)).collect(
                             Collectors.toList()));
                     return StreamSupport.stream(droppedIds.spliterator(), false).count();
@@ -189,137 +210,179 @@ public class AbstractRepoService<I, T, Q> implements IRepoService<I, T, Q> {
         return 0;
     }
 
+    /**
+     * update an existed entity
+     * @param entity the given entity holds the id and updates
+     * @return the flag
+     */
     @Override
-    public boolean updateById(T model) {
-        return updateByIds(model, ImmutableList.of(innerRepository.getId(model))) > 0;
+    public T updateById(T entity) {
+        updateByIds(entity, ImmutableList.of(innerRepository.getId(entity)));
+        return entity;
     }
 
+    /**
+     * update multiple entities by ids
+     * @param entity the entity holds updates
+     * @param ids the id set
+     * @return updated entities with ids
+     */
     @Override
-    public int updateByIds(T model, Iterable<I> ids) {
+    public Iterable<T> updateByIds(T entity, Iterable<I> ids) {
 
         if (useProxy()) {
-            Iterable<T> toUpdate = innerRepository.findAllById(ids);
+            List<T> toUpdateList = getListByIds(ids);
 
-            List<T> updated = BeanUtil.mapList(toUpdate, (Class<T>) entityType)
-                    .stream().map(x -> {
-                        BeanUtil.copyPropertiesExcludeNULL(model, x);
-                        return x;
+            List<T> updated = BeanUtil.mapList(toUpdateList, (Class<T>) entityType)
+                    .stream().map(target -> {
+                        BeanUtil.copyPropertiesExcludeNULL(entity, target);
+                        return target;
                     }).collect(Collectors.toList());
 
             if (!CollectionUtils.isEmpty(toUpdateList)) {
-                int nUpdated = repository.updateByIds(ids, model);
-                Set<String> modifiedFields = getModifiedFields(model, toUpdateList);
-                publishUpdate(toUpdateList, updated, modifiedFields);
-                return nUpdated;
+                Iterable<T> updateEnties = repository.updateByIds(ids, entity);
+                Set<String> modifiedFields = getModifiedFields(entity, toUpdateList);
+                repoProxy.preUpdate((Class<T>)entityType, schema(), table(), toUpdateList, updated, modifiedFields);
+                return updateEnties;
             }
 
-            return 0;
+            return ImmutableList.of();
         }
 
-        return repository.updateByIds(ids, model);
+        return repository.updateByIds(ids, entity);
     }
 
-    public int updateByQuery(T model, Object query) {
-        int nUpdate = countByQuery(query);
+    /**
+     * Update entities with query and the same entity holds the updates.
+     * @param query the query
+     * @param entity the entity holds the updates.
+     * @return the updated count.
+     */
+    @Override
+    public long updateByQuery(T entity, Q query) {
+        long nUpdate = countByQuery(query);
         if (nUpdate > 0) {
-            List<T> toUpdates = findByQuery(query);
-            if (!CollectionUtils.isEmpty(toUpdates)) {
-                return updateByIds(model, Lists.transform(toUpdates, repository::getId));
+            Iterable<T> toUpdates = findByQuery(query);
+            if (toUpdates.iterator().hasNext()) {
+                updateByIds(entity, Lists.transform(ImmutableList.copyOf(toUpdates), repository::getId));
+                return nUpdate;
             }
         }
         return 0;
     }
 
-    public int countAll() {
+    public long countAll() {
         return Long.valueOf(innerRepository.count()).intValue();
     }
 
+    /**
+     * count entities with query
+     * @param query the query
+     * @return the count
+     */
     public long countByQuery(Object query) {
         return Long.valueOf(innerRepository.countByCond(query)).intValue();
     }
 
+    /**
+     * Retrieves an entity by its id.
+     *
+     * @param id must not be {@literal null}.
+     * @return the entity with the given id or {@literal Optional#empty()} if none found
+     */
     @Override
     public Optional<T> getById(I id) {
         return repository.findById(id);
     }
-
-    public int insert(T model) {
-        return insertList(ImmutableList.of(model));
-    }
-
-    public int insertList(List<T> models) {
-        int nInsert = repository.insert(models);
-        if (useProxy()) {
-            repoProxy.preInsert(entityType, schema(), table(), models)
-        }
-        return nInsert;
-    }
-
+    /**
+     * Returns whether an entity with the given id exists.
+     *
+     * @param ids must not be {@literal null}.
+     * @return {@literal true} if an entity with the given id exists, {@literal false} otherwise.
+     */
     @Override
-    public final Object saveIgnore(Iterable<T> entites) {
-        Object bulkResult = saveIgnoreInternal(entites);
+    public Iterable<T> getAllById(Iterable<I> ids) {
+        return repository.findAllById(ids);
+    }
+
+    /**
+     * insert multiple entites;
+     * @param entities entities to insert
+     * @return inserted entities;
+     */
+    @Override
+    public Iterable<T> insertAll(Iterable<T> entities) {
+        repository.insertAll(entities);
+        if (useProxy()) {
+            repoProxy.preInsert((Class<T>)entityType, schema(), table(), entities);
+        }
+        return entities;
+    }
+
+    /**
+     * save entities if they are not already existed
+     * @param entities entities to save
+     * @return the bulk result
+     */
+    @Override
+    public final Object saveIgnore(Iterable<T> entities) {
+        Object bulkResult = saveIgnoreInternal(entities);
 
         if (useProxy()) {
-            List<T> inserted = parseBulk(entites, bulkResult);
-            if (!CollectionUtils.isEmpty(inserted)) {
-                publishInsert(inserted);
+            Iterable<T> inserted = parseBulk(entities, bulkResult);
+            if (inserted.iterator().hasNext()) {
+                repoProxy.preInsert((Class<T>)entityType, schema(), table(), inserted);
             }
         }
 
         return bulkResult;
     }
 
+    /**
+     * save entities if they are not already existed
+     * @param entities entities to save
+     * @param fieldName fields to validate the existence
+     * @return the bulk result
+     */
     @Override
     public final Object saveIgnore(Iterable<T> entities, String... fieldName) {
         Object bulkResult = saveIgnoreInternal(entities, fieldName);
 
         if (useProxy()) {
-            List<T> inserted = parseBulk(entities, bulkResult);
-            if (!CollectionUtils.isEmpty(inserted)) {
-                publishInsert(inserted);
+            Iterable<T> inserted = parseBulk(entities, bulkResult);
+            if (inserted.iterator().hasNext()) {
+                repoProxy.preInsert((Class<T>)entityType, schema(), table(), inserted);
             }
         }
         return bulkResult;
     }
 
+    /**
+     * save entities if they are not already existed
+     * @param entities entities to save
+     * @return the bulk result
+     */
     public Object saveIgnoreInternal(Iterable<T> entities) {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * save entities if they are not already existed
+     * @param entities entities to save
+     * @param fieldName fields to validate the existence
+     * @return the bulk result
+     */
     public Object saveIgnoreInternal(Iterable<T> entities, String... fieldName) {
         throw new UnsupportedOperationException();
     }
 
-    public void publishInsert(List<T> models) {
-        if (null != repoProxy) {
-            repoProxy.publishInsert((Class<T>) getEntityType(), schema(), table(), models, asyncHook());
-        }
-    }
-
-    public void publishDelete(Iterable<I> ids) {
-        if (null != dbSyncPublisher) {
-            List<T> models = StreamSupport.stream(ids.spliterator(), false).map(id -> {
-                T model = null;
-                try {
-                    model = ((Class<T>) getEntityType()).newInstance();
-                    innerRepository.setId(model, id);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                return model;
-            }).collect(Collectors.toList());
-
-            dbSyncPublisher.publishDelete((Class<T>) getEntityType(), schema(), table(), models, asyncHook());
-        }
-    }
-
-    public void publishUpdate(List<T> oldModels, List<T> newModels, Set<String> modifiedFields) {
-        if (null != dbSyncPublisher) {
-            dbSyncPublisher.publishUpdate((Class<T>) getEntityType(), schema(), table(), oldModels, newModels, modifiedFields, asyncHook());
-        }
-    }
-
-    private Set<String> getModifiedFields(T model, List<T> oldModels) {
+    /**
+     * parse the modified fields
+     * @param entity
+     * @param oldEntities
+     * @return the modified fields
+     */
+    private Set<String> getModifiedFields(T entity, List<T> oldEntities) {
         Map<String, Object> modifiedFields = Maps.newHashMap();
         Map<String, Method> getters = Maps.newHashMap();
 
@@ -329,7 +392,7 @@ public class AbstractRepoService<I, T, Q> implements IRepoService<I, T, Q> {
                 Method getter = entityClass.getMethod("get" + field.getName().substring(0, 1).toUpperCase() + field.getName().substring(1));
                 getters.put(field.getName(), getter);
 
-                Object fieldValue = getter.invoke(model);
+                Object fieldValue = getter.invoke(entity);
                 if (fieldValue != null) {
                     modifiedFields.put(field.getName(), fieldValue);
                 }
@@ -339,7 +402,7 @@ public class AbstractRepoService<I, T, Q> implements IRepoService<I, T, Q> {
         });
 
         Set<String> modifiedFieldNames = modifiedFields.entrySet().stream().filter(entry -> {
-            for (T oldModel : oldModels) {
+            for (T oldModel : oldEntities) {
                 Method getter = getters.get(entry.getKey());
                 Object oldFieldValue = null;
                 try {

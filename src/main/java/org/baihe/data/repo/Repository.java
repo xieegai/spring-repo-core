@@ -102,7 +102,7 @@ public interface Repository<I, T> extends CrudRepository<T, I> {
      * @param entity the entity with id and fields to update filled
      * @return the updated entity holds the id
      */
-    <S extends T> S updateById(S entity);
+    T updateById(T entity);
 
     /**
      * Update multiple entities referred by a list of with the same entity with fields to update filled. Return instances with id field filled at least.
@@ -110,7 +110,7 @@ public interface Repository<I, T> extends CrudRepository<T, I> {
      * @param entity the entity holds the updates
      * @return the updated entities
      */
-    <S extends T> Iterable<S> updateByIds(List<I> ids, S entity);
+    Iterable<T> updateByIds(Iterable<I> ids, T entity);
 
     /**
      * Returns whether an entity with the given id exists.

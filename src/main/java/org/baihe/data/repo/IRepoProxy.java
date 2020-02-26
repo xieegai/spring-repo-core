@@ -18,12 +18,40 @@ package org.baihe.data.repo;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * The interface to abstract a data repository proxy
+ * @author baihe
+ * Created on 2019/5/30
+ */
 public interface IRepoProxy {
 
-    <T> void preInsert(Class<T> entityClass, String schema, String table, List<T> entities);
+    /**
+     * hook interceptor pre insert
+     * @param entityClass the entity class
+     * @param schema the database of the entity
+     * @param table the table of the entity
+     * @param entities the inserted entities
+     */
+    <T> void preInsert(Class<T> entityClass, String schema, String table, Iterable<T> entities);
 
-    <T> void preDelete(Class<T> entityClass, String schema, String table, List<T> entities);
+    /**
+     * hook interceptor pre delete
+     * @param entityClass the entity class
+     * @param schema the database of the entity
+     * @param table the table of the entity
+     * @param entities the deleted entities
+     */
+    <T> void preDelete(Class<T> entityClass, String schema, String table, Iterable<T> entities);
 
+    /**
+     * hook interceptor pre update
+     * @param entityClass the entity class
+     * @param schema the database of the entity
+     * @param table the table of the entity
+     * @param oldEntities old entities
+     * @param newEntities new entities
+     * @param modifiedFields modified fields
+     */
     <T> void preUpdate(Class<T> entityClass, String schema, String table,
-        List<T> oldEntities, List<T> newEntities, Set<String> modifiedFields);
+        Iterable<T> oldEntities, Iterable<T> newEntities, Set<String> modifiedFields);
 }
