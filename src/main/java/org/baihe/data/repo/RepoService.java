@@ -117,14 +117,13 @@ public abstract class RepoService<I, T, Q> implements IRepoService<I, T, Q> {
     /**
      * manually initialize the inner repository
      */
-    void initInnerRepository() {
-    }
+    public abstract Repository<I, T> initInnerRepository();
 
     @PostConstruct
     private void initRepository() {
         if (innerRepository == null) {
             log.warn("Cannot find autowired candidate for inner repository, try to initialize");
-            initInnerRepository();
+            innerRepository = initInnerRepository();
         }
 
         Objects.requireNonNull(innerRepository, "Initialize inner repository failed");
@@ -279,7 +278,7 @@ public abstract class RepoService<I, T, Q> implements IRepoService<I, T, Q> {
      * @param query the query
      * @return the count
      */
-    public long countByQuery(Object query) {
+    public long countByQuery(Q query) {
         return Long.valueOf(innerRepository.countByCond(query)).intValue();
     }
 
