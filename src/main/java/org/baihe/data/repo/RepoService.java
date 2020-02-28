@@ -61,14 +61,13 @@ public abstract class RepoService<I, T, Q> implements IRepoService<I, T, Q> {
     /**
      * the type of entity id
      */
-    @Getter
-    private Type idType;
+    protected Type idType;
 
     /**
      * the type of entity
      */
     @Getter
-    private Type entityType;
+    protected Type entityType;
 
     /**
      * if the repository service use a proxy
