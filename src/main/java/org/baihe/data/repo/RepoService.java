@@ -270,7 +270,7 @@ public abstract class RepoService<I, T, Q> implements IRepoService<I, T, Q> {
     }
 
     public long countAll() {
-        return Long.valueOf(innerRepository.count()).intValue();
+        return innerRepository.count();
     }
 
     /**
