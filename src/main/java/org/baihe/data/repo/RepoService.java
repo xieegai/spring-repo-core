@@ -279,7 +279,7 @@ public abstract class RepoService<I, T, Q> implements IRepoService<I, T, Q> {
      * @return the count
      */
     public long countByQuery(Q query) {
-        return Long.valueOf(innerRepository.countByCond(query)).intValue();
+        return Long.valueOf(innerRepository.countByCond(parseCond(query))).intValue();
     }
 
     /**
