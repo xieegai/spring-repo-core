@@ -34,6 +34,7 @@ import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -51,7 +52,11 @@ public interface IRepoService<I, T, Q> {
      * @param sort the sort param
      * @return found records
      */
-    Iterable<T> findByQuery(Q query, Sort sort);
+    Iterable<T> findByQuery(Q query, Sort sort, long offset, long limit);
+
+    default Iterable<T> findByQuery(Q query, Sort sort) {
+        return findByQuery(query, sort, 0, 0);
+    }
 
     /**
      * find records match the query
@@ -83,7 +88,11 @@ public interface IRepoService<I, T, Q> {
      * @param pageable the page param
      * @return the paged records
      */
-    Page<T> findByQueryPage(Q query, Pageable pageable);
+    default Page<T> findByQueryPage(Q query, Pageable pageable) {
+        long totalCount = countByQuery(query);
+        Iterable<T> itemList = findByQuery(query, pageable.getSort());
+        return new PageImpl<>(ImmutableList.copyOf(itemList), pageable, totalCount);
+    }
 
     /**
      * delete the entity with the given id
