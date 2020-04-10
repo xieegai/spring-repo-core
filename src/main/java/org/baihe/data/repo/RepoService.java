@@ -34,7 +34,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
-public abstract class RepoService<I, T, Q> implements IRepoService<I, T, Q> {
+public abstract class RepoService<I, T, Q extends IQuery<T>> implements IRepoService<I, T, Q> {
 
     /**
      * the inner repository to access data

@@ -44,7 +44,7 @@ import org.springframework.data.domain.Sort;
  * @author baihe
  * Created on 2019/5/30
  */
-public interface IRepoService<I, T, Q> {
+public interface IRepoService<I, T, Q extends IQuery<T>> {
 
     /**
      * find records match the query
