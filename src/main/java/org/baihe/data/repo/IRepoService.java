@@ -91,7 +91,7 @@ public interface IRepoService<I, T, Q extends IQuery<T>> {
     default Page<T> findByQueryPage(Q query, Pageable pageable) {
         long totalCount = countByQuery(query);
         Iterable<T> itemList = findByQuery(query, pageable.getSort(),
-            pageable.getOffset() * pageable.getPageSize(), pageable.getPageSize());
+            pageable.getOffset(), pageable.getPageSize());
         return new PageImpl<>(ImmutableList.copyOf(itemList), pageable, totalCount);
     }
 
