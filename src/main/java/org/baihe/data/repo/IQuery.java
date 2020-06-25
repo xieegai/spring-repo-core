@@ -19,5 +19,7 @@ package org.baihe.data.repo;
  * @author baihe Created on 2020/4/10 2:15 PM
  */
 public interface IQuery<T> {
-
+    default boolean isEmpty() {
+        return false;
+    }
 }

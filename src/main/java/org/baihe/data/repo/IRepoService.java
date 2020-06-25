@@ -31,6 +31,7 @@
 package org.baihe.data.repo;
 
 import com.google.common.collect.ImmutableList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -55,6 +56,9 @@ public interface IRepoService<I, T, Q extends IQuery<T>> {
     Iterable<T> findByQuery(Q query, Sort sort, long offset, long limit);
 
     default Iterable<T> findByQuery(Q query, Sort sort) {
+        if (query.isEmpty()) {
+            return Collections.emptyList();
+        }
         return findByQuery(query, sort, 0, 0);
     }
 
@@ -64,6 +68,9 @@ public interface IRepoService<I, T, Q extends IQuery<T>> {
      * @return found records
      */
     default Iterable<T> findByQuery(Q query) {
+        if (query.isEmpty()) {
+            return Collections.emptyList();
+        }
         return findByQuery(query, null);
     }
 
@@ -90,6 +97,9 @@ public interface IRepoService<I, T, Q extends IQuery<T>> {
      */
     default Page<T> findByQueryPage(Q query, Pageable pageable) {
         long totalCount = countByQuery(query);
+        if (0L == totalCount) {
+            return Page.empty();
+        }
         Iterable<T> itemList = findByQuery(query, pageable.getSort(),
             pageable.getOffset(), pageable.getPageSize());
         return new PageImpl<>(ImmutableList.copyOf(itemList), pageable, totalCount);

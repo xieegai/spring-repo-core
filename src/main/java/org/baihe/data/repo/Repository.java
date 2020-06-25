@@ -30,7 +30,6 @@
 
 package org.baihe.data.repo;
 
-import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.springframework.data.repository.CrudRepository;

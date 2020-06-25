@@ -190,6 +190,10 @@ public abstract class RepoService<I, T, Q extends IQuery<T>> implements IRepoSer
      */
     @Override
     public long deleteByQuery(Q query) {
+        // skip delete for empty query
+        if (query.isEmpty()) {
+            return 0L;
+        }
         long nDelete = countByQuery(query);
         if (nDelete > 0) {
             if (useProxy()) {
@@ -258,6 +262,10 @@ public abstract class RepoService<I, T, Q extends IQuery<T>> implements IRepoSer
      */
     @Override
     public long updateByQuery(T entity, Q query) {
+        // skip update for empty query
+        if (query.isEmpty()) {
+            return 0L;
+        }
         long nUpdate = countByQuery(query);
         if (nUpdate > 0) {
             Iterable<T> toUpdates = findByQuery(query);
@@ -279,6 +287,9 @@ public abstract class RepoService<I, T, Q extends IQuery<T>> implements IRepoSer
      * @return the count
      */
     public long countByQuery(Q query) {
+        if (query.isEmpty()) {
+            return 0L;
+        }
         return Long.valueOf(innerRepository.countByCond(parseCond(query))).intValue();
     }
 
