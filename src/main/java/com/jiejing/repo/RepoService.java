@@ -224,7 +224,7 @@ public abstract class RepoService<I, T, Q extends IQuery<T>> {
     /**
      * manually initialize the inner repository
      */
-    public abstract Repository<I, T> initInnerRepository();
+    protected abstract Repository<I, T> initInnerRepository();
 
     @PostConstruct
     private void initRepository() {
@@ -363,7 +363,7 @@ public abstract class RepoService<I, T, Q extends IQuery<T>> {
      * @param entity the entity holds the updates.
      * @return the updated count.
      */
-    public long updateByQuery(T entity, Q query) {
+    protected long updateByQuery(T entity, Q query) {
         // skip update for empty query
         if (query.isEmpty()) {
             return 0L;
@@ -388,7 +388,7 @@ public abstract class RepoService<I, T, Q extends IQuery<T>> {
      * @param query the query
      * @return the count
      */
-    public long countByQuery(Q query) {
+    protected long countByQuery(Q query) {
         if (query.isEmpty()) {
             return 0L;
         }
@@ -468,7 +468,7 @@ public abstract class RepoService<I, T, Q extends IQuery<T>> {
      * @param entities entities to save
      * @return the bulk result
      */
-    public Object saveIgnoreInternal(Iterable<T> entities) {
+    protected Object saveIgnoreInternal(Iterable<T> entities) {
         throw new UnsupportedOperationException();
     }
 
@@ -478,7 +478,7 @@ public abstract class RepoService<I, T, Q extends IQuery<T>> {
      * @param fieldName fields to validate the existence
      * @return the bulk result
      */
-    public Object saveIgnoreInternal(Iterable<T> entities, String... fieldName) {
+    protected Object saveIgnoreInternal(Iterable<T> entities, String... fieldName) {
         throw new UnsupportedOperationException();
     }
 
