@@ -24,7 +24,7 @@
 		<relativePath/>
 	</parent>
 
-	<groupId>org.baihe.data</groupId>
+	<groupId>com.jiejing.repo</groupId>
 	<artifactId>repo-core</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<description>A spring-data compatable repository and data-service abstraction</description>
