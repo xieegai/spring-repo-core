@@ -20,6 +20,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import javax.annotation.PostConstruct;
+
+import com.jiejing.repo.utils.PageUtil;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -73,8 +75,8 @@ public abstract class RepoService<I, T, Q extends IQuery<T>> {
     protected Optional<T> findOneByQuery(Q query, Sort sort) {
         long foundCount = countByQuery(query);
         if (foundCount > 0L) {
-            Page<T> resultPage = findByQueryPage(query, PageRequest.of(0, 1, sort));
-            return resultPage.getContent().stream().findFirst();
+            Iterable<T> resultIterable = findByQuery(query, sort, 0L, 1L);
+            return StreamSupport.stream(resultIterable.spliterator(), false).findFirst();
         }
         return Optional.empty();
     }
@@ -93,6 +95,55 @@ public abstract class RepoService<I, T, Q extends IQuery<T>> {
         Iterable<T> itemList = findByQuery(query, pageable.getSort(),
             pageable.getOffset(), pageable.getPageSize());
         return new PageImpl<>(ImmutableList.copyOf(itemList), pageable, totalCount);
+    }
+
+    /**
+     * find the paged records by query, sort and page param
+     * @param query the query param
+     * @param sort the sort param
+     * @param pageNo the page no
+     * @param pageSize the page size
+     * @param oneBasedPage whether the page is start from one
+     * @return the paged records
+     */
+    protected Page<T> findByQueryPage(Q query, Sort sort, int pageNo, int pageSize, boolean oneBasedPage) {
+        Pageable pageReq = PageUtil.toPageable(pageNo,pageSize, sort, oneBasedPage);
+        return findByQueryPage(query, pageReq);
+    }
+
+    /**
+     * find the paged records by query, sort and page param
+     * @param query the query param
+     * @param sort the sort param
+     * @param pageNo the page no
+     * @param pageSize the page size
+     * @return the paged records
+     */
+    protected Page<T> findByQueryPage(Q query, Sort sort, int pageNo, int pageSize) {
+        return findByQueryPage(query, sort, pageNo, pageSize, oneBasedPage());
+    }
+
+    /**
+     * find the paged records by query, sort and page param
+     * @param query the query param
+     * @param pageNo the page no
+     * @param pageSize the page size
+     * @param oneBasedPage whether the page is start from one
+     * @return the paged records
+     */
+    protected Page<T> findByQueryPage(Q query, int pageNo, int pageSize, boolean oneBasedPage) {
+        return findByQueryPage(query, null, pageNo, pageSize, oneBasedPage);
+    }
+
+    /**
+     * find the paged records by query, sort and page param
+     * @param query the query param
+     * @param pageNo the page no
+     * @param pageSize the page size
+     * @return the paged records
+     */
+    protected Page<T> findByQueryPage(Q query, int pageNo, int pageSize) {
+        return findByQueryPage(query, null, pageNo, pageSize, oneBasedPage());
     }
 
     /**
@@ -163,7 +214,7 @@ public abstract class RepoService<I, T, Q extends IQuery<T>> {
     /**
      * the repository service configuration
      */
-    private RepoServiceConfig config;
+    private RepoConfig config;
 
     /**
      * the type of entity id
@@ -205,8 +256,8 @@ public abstract class RepoService<I, T, Q extends IQuery<T>> {
      * the index of the first page
      * @return default to 0
      */
-    public int startPage() {
-        return null != config ? config.startPage() : 0;
+    public boolean oneBasedPage() {
+        return null != config && config.oneBasedPage();
     }
 
     public RepoService() {
@@ -218,7 +269,7 @@ public abstract class RepoService<I, T, Q extends IQuery<T>> {
 
         idType = ((ParameterizedType) subClass.getGenericSuperclass()).getActualTypeArguments()[0];
         entityType = ((ParameterizedType) subClass.getGenericSuperclass()).getActualTypeArguments()[1];
-        config = this.getClass().getAnnotation(RepoServiceConfig.class);
+        config = this.getClass().getAnnotation(RepoConfig.class);
     }
 
     /**
@@ -237,30 +288,6 @@ public abstract class RepoService<I, T, Q extends IQuery<T>> {
 
         //TODO set repository to inner repository directly
         this.repository = innerRepository;
-    }
-
-    /**
-     * find the paged records by query, sort and page param
-     * @param query the query param
-     * @param sort the sort param
-     * @param pageNo the page no
-     * @param pageSize the page size
-     * @return the paged records
-     */
-    protected Page<T> findByQueryPage(Q query, Sort sort, int pageNo, int pageSize) {
-        Pageable pageReq = PageRequest.of(Math.max(pageNo - startPage(), 0), pageSize, sort);
-        return findByQueryPage(query, pageReq);
-    }
-
-    /**
-     * find the paged records by query, sort and page param
-     * @param query the query param
-     * @param pageNo the page no
-     * @param pageSize the page size
-     * @return the paged records
-     */
-    protected Page<T> findByQueryPage(Q query, int pageNo, int pageSize) {
-        return findByQueryPage(query, null, pageNo, pageSize);
     }
 
     /**
@@ -521,7 +548,7 @@ public abstract class RepoService<I, T, Q extends IQuery<T>> {
                 }
             }
             return false;
-        }).map(entry -> entry.getKey()).collect(Collectors.toSet());
+        }).map(Map.Entry::getKey).collect(Collectors.toSet());
 
         return modifiedFieldNames;
     }

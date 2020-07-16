@@ -27,9 +27,9 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface RepoServiceConfig {
+public @interface RepoConfig {
   String schema() default "";
   String table() default "";
   boolean useProxy() default false;
-  int startPage() default 0;
+  boolean oneBasedPage() default false;
 }
