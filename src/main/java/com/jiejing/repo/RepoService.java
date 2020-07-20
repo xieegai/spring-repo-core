@@ -24,6 +24,9 @@ import javax.annotation.PostConstruct;
 import com.jiejing.repo.utils.PageUtil;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.BeanWrapper;
+import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -365,17 +368,18 @@ public abstract class RepoService<I, T, Q extends IQuery<T>> {
         if (useProxy()) {
             List<T> toUpdateList = getListByIds(ids);
 
-            List<T> updated = BeanUtil.mapList(toUpdateList, (Class<T>) entityType)
-                    .stream().map(target -> {
-                        BeanUtil.copyPropertiesExcludeNULL(entity, target);
-                        return target;
-                    }).collect(Collectors.toList());
+            String[] nullProps = getNullPropertyNames(entity);
+
+            List<T> updated = toUpdateList.stream().map(target -> {
+                BeanUtils.copyProperties(entity, target, nullProps);
+                return target;
+            }).collect(Collectors.toList());
 
             if (!CollectionUtils.isEmpty(toUpdateList)) {
-                Iterable<T> updateEnties = repository.updateByIds(ids, entity);
+                Iterable<T> updateEntities = repository.updateByIds(ids, entity);
                 Set<String> modifiedFields = getModifiedFields(entity, toUpdateList);
                 repoProxy.preUpdate((Class<T>)entityType, schema(), table(), toUpdateList, updated, modifiedFields);
-                return updateEnties;
+                return updateEntities;
             }
 
             return ImmutableList.of();
@@ -551,5 +555,18 @@ public abstract class RepoService<I, T, Q extends IQuery<T>> {
         }).map(Map.Entry::getKey).collect(Collectors.toSet());
 
         return modifiedFieldNames;
+    }
+
+    private static String[] getNullPropertyNames(Object source) {
+        final BeanWrapper src = new BeanWrapperImpl(source);
+        java.beans.PropertyDescriptor[] pds = src.getPropertyDescriptors();
+
+        Set<String> emptyNames = new HashSet<String>();
+        for (java.beans.PropertyDescriptor pd : pds) {
+            Object srcValue = src.getPropertyValue(pd.getName());
+            if (srcValue == null) emptyNames.add(pd.getName());
+        }
+        String[] result = new String[emptyNames.size()];
+        return emptyNames.toArray(result);
     }
 }
